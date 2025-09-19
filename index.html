@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>MyComerce</title>
+<style>
+  :root{
+    --bg:#f6f9ff;--panel:#ffffff;--primary:#2563eb;--primary-weak:#e6efff;--ink:#0f172a;--muted:#64748b;--line:#e5e7eb;
+    --ok:#10b981;--warn:#f59e0b;--danger:#ef4444;--shadow:0 10px 24px rgba(15,23,42,.06);--radius:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+  h1,h2,h3{margin:.2rem 0 .6rem}
+  img{max-width:100%;display:block}
+  /* ========= LAYOUT ========= */
+  .app{display:flex;min-height:100vh}
+  aside{width:260px;background:#fff;border-right:1px solid var(--line);padding:22px 16px; position:sticky; top:0; height:100vh;}
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+  .brand h2{font-size:18px;color:var(--primary)} /* só o nome em azul */
+  .user{display:flex;align-items:center;gap:10px;background:var(--primary-weak);padding:10px;border-radius:12px;margin-bottom:14px;}
+  .user .avatar{width:36px;height:36px;border-radius:50%;background:#dbeafe}
+  nav a, nav button{width:100%;display:flex;align-items:center;gap:10px;background:transparent;border:0;text-align:left;padding:12px 10px;border-radius:12px;color:var(--muted);font-weight:600;cursor:pointer;}
+  nav a.active, nav button.active, nav a:hover, nav button:hover{background:#eef2ff;color:#1e293b}
+  main{flex:1; padding:24px}
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px; box-shadow:var(--shadow);}
+  .grid{display:grid;gap:16px}
+  .g-2{grid-template-columns:1fr 1fr}
+  .g-3{grid-template-columns:repeat(3,1fr)}
+  .g-4{grid-template-columns:repeat(4,1fr)}
+  @media(max-width:1000px){.g-4,.g-3{grid-template-columns:1fr 1fr}}
+  @media(max-width:720px){aside{display:none} .g-2{grid-template-columns:1fr}}
+  .btn{border:0;border-radius:12px;padding:12px 16px;font-weight:700;cursor:pointer;background:var(--primary);color:#fff; box-shadow:var(--shadow)}
+  .btn.secondary{background:#111827}
+  .btn.ghost{background:#fff;border:1px solid var(--line);color:#111827}
+  .btn.ok{background:var(--ok)}
+  .btn.warn{background:var(--warn)}
+  .btn:hover{filter:brightness(.98)}
+  input,select,textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;background:#fff;color:#0f172a}
+  table{width:100%;border-collapse:collapse;margin-top:10px}
+  th,td{padding:10px;border-bottom:1px solid var(--line);text-align:left}
+  th{color:#334155;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+  .pill{display:inline-flex;align-items:center;gap:6px;background:#eef2ff;color:#1e293b;border:1px solid var(--line);padding:4px 10px;border-radius:999px;font-size:12px}
+  .muted{color:var(--muted)}
+  .right{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+  /* ========= CAPA ========= */
+  #authPage{display:flex;flex-direction:column;gap:18px}
+  .hero{
+    background:radial-gradient(1000px 280px at 85% -60%, rgba(37,99,235,.25), transparent 60%), linear-gradient(135deg,#e8f0ff 0%, #ffffff 100%);
+    border:1px solid var(--line); border-radius:var(--radius); padding:28px; overflow:hidden; position:relative; box-shadow:var(--shadow);
+  }
+  .heroWrap{display:grid;grid-template-columns:1.25fr .75fr;gap:24px;align-items:center}
+  .hero h1{font-size:34px;line-height:1.2;margin:0 0 8px}
+  .hero p{font-size:16px;color:var(--muted);margin:0 0 16px}
+  .people{aspect-ratio: 4/3; border-radius:16px; overflow:hidden; border:1px solid var(--line);
+    background:url('https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?q=80&w=1200&auto=format&fit=crop') center/cover no-repeat; box-shadow:var(--shadow);}
+  .roleToggle{display:flex;gap:10px;margin:10px 0 6px}
+  .roleToggle .seg{flex:1; background:#fff;border:1px solid var(--line);padding:10px;border-radius:999px;cursor:pointer;text-align:center;font-weight:700;color:#334155}
+  .roleToggle .seg.active{background:#1d4ed8;color:#fff;border-color:#1d4ed8}
+  .mini{font-size:12px;color:var(--muted)}
+  .plans .price{font-size:28px;font-weight:800}
+  .plans .plan{border:2px solid #e6eaff}
+  .plans .plan.highlight{border-color:#1d4ed8; box-shadow:0 10px 24px rgba(37,99,235,.15)}
+  .thumb{width:48px;height:48px;object-fit:cover;border-radius:12px;border:1px solid var(--line)}
+  /* ========= TABS ========= */
+  section{display:none}
+  section.active{display:block}
+  /* ========= PAYWALL ========= */
+  #paywall{display:none}
+  #paywall .planTitle{font-weight:800;margin:0}
+  #paywall .price{font-size:26px;font-weight:900}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside>
+    <!-- Só o nome -->
+    <div class="brand"><h2>MyComerce</h2></div>
+
+    <div class="user"><div class="avatar"></div><div><div id="sbUser" style="font-weight:800">Visitante</div><div class="mini">Não autenticado</div></div></div>
+    <nav>
+      <button onclick="openAuth()" id="sbAuth" class="active">Início</button>
+      <button onclick="showTab('caixa')">Caixa</button>
+      <button onclick="showTab('produtos')">Produtos</button>
+      <button onclick="showTab('estoque')">Estoque</button>
+      <button onclick="showTab('vendas')">Vendas</button>
+      <button onclick="showTab('clientes')">Clientes</button>
+      <button onclick="showTab('proprietario')">Proprietário</button>
+      <!-- Dashboard: só aparece se role === owner -->
+      <button onclick="showTab('dashboard')" id="btnDashboard" style="display:none">Dashboard</button>
+      <button class="ghost" onclick="logout()">Sair</button>
+    </nav>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <div>
+        <h1 style="margin:0;font-size:22px">Painel</h1>
+        <div class="mini" id="sessionInfo">Sessão não iniciada</div>
+      </div>
+    </div>
+
+    <!-- ===================== CAPA ===================== -->
+    <div id="authPage">
+      <div class="hero">
+        <div class="heroWrap">
+          <div>
+            <!-- Título removido a pedido -->
+            <p>Vendas simples, estoque organizado e relatórios em um clique. Perfeito para lojas de todos os tamanhos.</p>
+
+            <!-- LOGIN -->
+            <div class="card" style="padding:16px">
+              <h3 style="margin:0 0 8px">Entrar</h3>
+              <div class="roleToggle">
+                <div class="seg active" id="btnLoginCashier" onclick="setLoginRole('cashier')">Sou Caixa</div>
+                <div class="seg" id="btnLoginOwner" onclick="setLoginRole('owner')">Sou Proprietário</div>
+              </div>
+              <div class="grid g-2">
+                <input id="loginUser" type="text" placeholder="Usuário">
+                <input id="loginPass" type="password" placeholder="Senha">
+              </div>
+              <div id="loginStoreWrap">
+                <input id="loginStore" type="text" placeholder="Código da Loja (obrigatório para Caixa)">
+              </div>
+              <div class="right"><button class="btn" onclick="login()">Entrar</button></div>
+              <div class="mini">Dica: usuário padrão <b>ADMIN</b> / senha <b>1234</b> (proprietário).</div>
+            </div>
+
+            <!-- CRIAR CONTAS -->
+            <div class="grid g-2" style="margin-top:16px">
+              <div class="card">
+                <h3 style="margin-top:0">Criar conta de Caixa</h3>
+                <p class="mini">Vincule ao <b>Código da Loja</b> do proprietário.</p>
+                <input id="regUser" type="text" placeholder="Usuário do Caixa">
+                <input id="regPass" type="password" placeholder="Senha">
+                <input id="regStoreCode" type="text" placeholder="Código da Loja">
+                <div class="right"><button class="btn" onclick="registerCashier()">Criar Caixa</button></div>
+              </div>
+              <div class="card">
+                <h3 style="margin-top:0">Criar conta de Proprietário</h3>
+                <p class="mini">Defina o <b>Código da Loja</b> (será usado pelos caixas).</p>
+                <input id="regOwnerUser" type="text" placeholder="Usuário do Proprietário">
+                <input id="regOwnerPass" type="password" placeholder="Senha">
+                <input id="regOwnerCode" type="text" placeholder="Criar Código da Loja (ex: LOJA-123)">
+                <div class="right"><button class="btn secondary" onclick="registerOwner()">Criar Proprietário</button></div>
+              </div>
+            </div>
+          </div>
+          <div class="people" title="Ilustração"></div>
+        </div>
+      </div>
+
+      <!-- PLANOS (mostrados também no paywall) -->
+      <div class="plans grid g-3">
+        <div class="card plan">
+          <h3 style="margin:0 0 6px">Mensal</h3>
+          <div class="price">R$ 99,99</div>
+          <p class="mini">Suporte padrão, atualização automática.</p>
+          <button class="btn" onclick="choosePlan('mensal')">Assinar</button>
+        </div>
+        <div class="card plan highlight">
+          <h3 style="margin:0 0 6px">Trimestral</h3>
+          <div class="price">R$ 270,00</div>
+          <p class="mini">Economia em relação ao mensal.</p>
+          <button class="btn" onclick="choosePlan('trimestral')">Assinar</button>
+        </div>
+        <div class="card plan">
+          <h3 style="margin:0 0 6px">Anual</h3>
+          <div class="price">R$ 960,00</div>
+          <p class="mini">Melhor custo-benefício.</p>
+          <button class="btn" onclick="choosePlan('anual')">Assinar</button>
+        </div>
+      </div>
+    </div>
+    <!-- ===================== /CAPA ===================== -->
+
+    <!-- ===================== PAYWALL (pós-cadastro / sem plano) ===================== -->
+    <section id="paywall" class="active">
+      <div class="card">
+        <h2>Escolha um plano para continuar</h2>
+        <p class="muted">Detectamos que sua conta ainda não possui um plano ativo.</p>
+        <div class="grid g-3" style="margin-top:12px">
+          <div class="card">
+            <h3 class="planTitle">Mensal</h3><div class="price">R$ 99,99</div>
+            <button class="btn ok" onclick="choosePlan('mensal')">Assinar Mensal</button>
+          </div>
+          <div class="card">
+            <h3 class="planTitle">3 meses</h3><div class="price">R$ 270,00</div>
+            <button class="btn ok" onclick="choosePlan('trimestral')">Assinar 3 meses</button>
+          </div>
+          <div class="card">
+            <h3 class="planTitle">Anual</h3><div class="price">R$ 960,00</div>
+            <button class="btn ok" onclick="choosePlan('anual')">Assinar Anual</button>
+          </div>
+        </div>
+        <div class="right" style="margin-top:10px">
+          <button class="btn ghost" onclick="alert('Após pagar na Kiwify, volte para o site. Usaremos o retorno/webhook para liberar automaticamente.');">Como funciona?</button>
+          <button class="btn warn" onclick="confirmarPagamento()">Já paguei / Atualizar</button>
+        </div>
+      </div>
+    </section>
+    <!-- ===================== /PAYWALL ===================== -->
+
+    <!-- ===================== SISTEMA ===================== -->
+    <section id="caixa">
+      <div class="card">
+        <h2>Meu Caixa (Hoje)</h2>
+        <p class="mini">Operador: <b id="caixaOperador">-</b> <span class="pill" id="caixaData">-</span> • Loja: <b id="caixaLoja">-</b></p>
+        <div class="grid g-3">
+          <div class="card"><div>Total de Vendas</div><h2 id="cxQtdVendas">0</h2></div>
+          <div class="card"><div>Valor Vendido</div><h2>R$ <span id="cxTotal">0.00</span></h2></div>
+          <div class="card"><div>Itens Vendidos</div><h2 id="cxItens">0</h2></div>
+        </div>
+        <h3>Vendas do dia</h3>
+        <table id="cxTabela"><tr><th>Hora</th><th>CPF</th><th>Itens</th><th>Total</th></tr></table>
+      </div>
+      <div class="card">
+        <h3>Histórico do meu Caixa (dias anteriores)</h3>
+        <table id="cxHistorico"><tr><th>Data</th><th>Qtd Vendas</th><th>Total</th></tr></table>
+      </div>
+    </section>
+
+    <section id="produtos">
+      <div class="card">
+        <h2>Cadastrar Produto</h2>
+        <form onsubmit="addProduto(event)">
+          <div class="grid g-2">
+            <input id="nomeProd" type="text" placeholder="Nome do produto" required>
+            <input id="codigoProd" type="text" placeholder="Código de barras" required>
+          </div>
+          <div class="grid g-3">
+            <input id="catProd" type="text" placeholder="Categoria">
+            <input id="tamProd" type="text" placeholder="Tamanho (ex: P, M, G, 42)">
+            <input id="qtdProd" type="number" placeholder="Quantidade" required>
+          </div>
+          <div class="grid g-3">
+            <input id="precoProd" type="number" step="0.01" placeholder="Preço (R$)" required>
+            <input id="fotoProd" type="file" accept="image/*" onchange="previewFoto(event)">
+            <div id="fotoPreview" class="muted" style="display:flex;align-items:center;gap:.5rem;justify-content:center"><span>Sem imagem</span></div>
+          </div>
+          <div class="right"><button class="btn" type="submit">Salvar Produto</button></div>
+        </form>
+      </div>
+    </section>
+
+    <section id="estoque" class="active">
+      <div class="card">
+        <h2>Produtos em Estoque</h2>
+        <input id="barcodeInput" placeholder="Escaneie/digite o código e Enter" autofocus>
+        <div id="listaCategorias"></div>
+      </div>
+    </section>
+
+    <section id="vendas">
+      <div class="card">
+        <h2>PDV / Caixa</h2>
+        <div class="grid g-3">
+          <input id="vendaInput" placeholder="Digite NOME ou CÓDIGO e Enter" autofocus>
+          <input id="vendaCPF" placeholder="CPF do cliente (apenas números)">
+          <button class="btn" onclick="finalizarVenda()">Finalizar Venda</button>
+        </div>
+        <h3>Carrinho</h3>
+        <table id="tabelaCarrinho"><tr><th>Produto</th><th>Tamanho</th><th>Preço</th><th>Qtd</th><th>Ações</th></tr></table>
+        <h3>Total: R$ <span id="totalVenda">0.00</span></h3>
+      </div>
+    </section>
+
+    <section id="clientes">
+      <div class="card">
+        <h2>Criar Cadastro de Cliente</h2>
+        <div class="grid g-3">
+          <input id="cliNomeCad" type="text" placeholder="Nome completo">
+          <input id="cliCPFCad" type="text" placeholder="CPF (apenas números)">
+          <input id="cliContatoCad" type="text" placeholder="Telefone/E-mail (opcional)">
+        </div>
+        <div class="right"><button class="btn" onclick="criarCliente()">Salvar Cliente</button></div>
+      </div>
+      <div class="card">
+        <h2>Consultar Compras por CPF</h2>
+        <div class="grid g-3">
+          <input id="cliNome" type="text" placeholder="Nome do Cliente (opcional)">
+          <input id="cliCPF" type="text" placeholder="CPF do Cliente">
+          <button class="btn" onclick="buscarCompras()">Buscar Compras</button>
+        </div>
+        <div id="comprasCliente"></div>
+      </div>
+    </section>
+
+    <section id="proprietario">
+      <div id="ownerAuth" class="card">
+        <h2>Acesso do Proprietário</h2>
+        <div class="grid g-3">
+          <input id="ownerUser" placeholder="Usuário do proprietário">
+          <input id="ownerPass" placeholder="Senha" type="password">
+          <input id="ownerCode" placeholder="Código da Loja">
+        </div>
+        <div class="right"><button class="btn" onclick="entrarOwner()">Entrar</button></div>
+      </div>
+
+      <div id="ownerArea" style="display:none">
+        <div class="card">
+          <h2>Resumo Mensal da Loja <span class="pill" id="ownerLoja"></span></h2>
+          <div class="grid g-3">
+            <div class="card"><div>Faturamento do mês</div><h2>R$ <span id="ownFatMes">0.00</span></h2></div>
+            <div class="card"><div>Vendas no mês</div><h2 id="ownQtdMes">0</h2></div>
+            <div class="card"><div>Caixas no mês (c/ venda)</div><h2 id="ownCaixasMes">0</h2></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Vendas por Caixa (Hoje)</h3>
+          <table id="ownHoje"><tr><th>Caixa</th><th>Qtd Vendas</th><th>Total</th></tr></table>
+        </div>
+        <div class="card">
+          <h3>Vendas por Caixa (Mês)</h3>
+          <table id="ownMes"><tr><th>Caixa</th><th>Qtd Vendas</th><th>Total</th></tr></table>
+        </div>
+        <div class="card">
+          <h3>Produtos & Estoque (da loja)</h3>
+          <table id="ownProd"><tr><th>Foto</th><th>Produto</th><th>Código</th><th>Categoria</th><th>Tam.</th><th>Qtd</th><th>Preço</th></tr></table>
+        </div>
+      </div>
+    </section>
+
+    <section id="dashboard">
+      <div class="card">
+        <h2>Resumo Geral</h2>
+        <div class="grid g-3">
+          <div class="card"><div>Total de vendas</div><h2 id="dashVendas">0</h2></div>
+          <div class="card"><div>Valor total vendido</div><h2>R$ <span id="dashTotal">0.00</span></h2></div>
+          <div class="card"><div>Clientes atendidos</div><h2 id="dashClientes">0</h2></div>
+        </div>
+      </div>
+    </section>
+    <!-- ===================== /SISTEMA ===================== -->
+  </main>
+</div>
+
+<script>
+/* =================== Persistência =================== */
+const KEY_USERS="loja_users";
+const KEY_PROD ="loja_produtos";
+const KEY_VEND ="loja_vendas";
+const KEY_CLI  ="loja_clientes";
+const KEY_SESSION="loja_session";
+
+/* Substitua pelos seus links de checkout Kiwify */
+const KIWIFY_LINKS = {
+  mensal:     "https://pay.kiwify.com.br/SEU_LINK_MENSAL",
+  trimestral: "https://pay.kiwify.com.br/SEU_LINK_TRIMESTRAL",
+  anual:      "https://pay.kiwify.com.br/SEU_LINK_ANUAL"
+};
+
+let users=[], produtos=[], vendas=[], clientes=[];
+let currentUser=null, ownerSession=null, fotoDataURL=null;
+
+/* ===== Helpers ===== */
+const norm = s => (s||"").toString().trim().toUpperCase();
+function todayStr(){ return new Date().toLocaleDateString(); }
+function sameDay(a,b){ return a.getFullYear()==b.getFullYear() && a.getMonth()==b.getMonth() && a.getDate()==b.getDate(); }
+function monthKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`; }
+
+/* Plano ativo: salva no user: {planType, planUntil(ISO)} */
+function hasActivePlan(u){
+  if(!u || !u.planType || !u.planUntil) return false;
+  try{ return new Date(u.planUntil) > new Date(); } catch { return false; }
+}
+function planMonths(type){ return type==="mensal"?1 : type==="trimestral"?3 : type==="anual"?12 : 0; }
+function addMonths(date, n){ const d=new Date(date); d.setMonth(d.getMonth()+n); return d; }
+
+function saveAll(){
+  localStorage.setItem(KEY_USERS, JSON.stringify(users));
+  localStorage.setItem(KEY_PROD, JSON.stringify(produtos));
+  localStorage.setItem(KEY_VEND, JSON.stringify(vendas));
+  localStorage.setItem(KEY_CLI, JSON.stringify(clientes));
+}
+function saveSession(){ localStorage.setItem(KEY_SESSION, JSON.stringify(currentUser||null)); }
+
+function loadAll(){
+  try{
+    users = JSON.parse(localStorage.getItem(KEY_USERS)||"[]");
+    produtos = JSON.parse(localStorage.getItem(KEY_PROD)||"[]");
+    vendas = JSON.parse(localStorage.getItem(KEY_VEND)||"[]");
+    clientes = JSON.parse(localStorage.getItem(KEY_CLI)||"[]");
+  }catch{ users=[];produtos=[];vendas=[];clientes=[]; }
+  if(users.length===0){
+    users=[{user:"ADMIN", pass:"1234", role:"owner", storeCode:"LOJA-123", planType:"anual", planUntil:addMonths(new Date(),12).toISOString()}];
+    saveAll();
+  }
+}
+function loadSession(){
+  try{
+    const s = JSON.parse(localStorage.getItem(KEY_SESSION)||"null");
+    if(s && s.user && s.role){ currentUser = s; }
+  }catch{}
+}
+
+window.addEventListener("DOMContentLoaded", ()=>{
+  loadAll();
+  loadSession();
+  if(!currentUser){ openAuth(); }
+  else { afterLoginUI(); routeAfterLogin(); }
+});
+
+/* =================== CAPA / LOGIN UX =================== */
+function openAuth(){
+  document.getElementById("authPage").style.display="block";
+  document.getElementById("sbAuth").classList.add("active");
+  // esconder paywall e sistema
+  document.querySelectorAll("main section").forEach(s=>s.classList.remove("active"));
+  document.getElementById("paywall").style.display="none";
+}
+let loginRole = "cashier";
+function setLoginRole(role){
+  loginRole = role;
+  document.getElementById("btnLoginCashier").classList.toggle("active", role==="cashier");
+  document.getElementById("btnLoginOwner").classList.toggle("active", role==="owner");
+  document.getElementById("loginStoreWrap").style.display = (role==="cashier") ? "block" : "none";
+}
+
+/* =================== Auth =================== */
+function login(){
+  const u = norm(document.getElementById("loginUser").value);
+  const p = document.getElementById("loginPass").value;
+  const s = norm(document.getElementById("loginStore").value);
+
+  const found = users.find(x=>norm(x.user)===u && x.pass===p);
+  if(!found){ alert("Usuário ou senha inválidos!"); return; }
+
+  if(loginRole==="owner" && found.role!=="owner"){ alert("Esta conta não é de proprietário."); return; }
+  if(loginRole==="cashier" && found.role==="owner"){ alert("Use 'Sou Proprietário' para esse login."); return; }
+
+  currentUser = {...found};
+  if(found.role!=="owner"){
+    const code = s || found.storeCode;
+    if(!code){ alert("Informe o Código da Loja para vincular o caixa."); return; }
+    currentUser.storeCode = norm(code);
+  }
+  saveSession();
+  afterLoginUI();
+  routeAfterLogin();
+}
+
+/* Decide pra onde ir após login/cadastro */
+function routeAfterLogin(){
+  // Dashboard visível só p/ owner
+  document.getElementById("btnDashboard").style.display = (currentUser?.role==="owner") ? "block" : "none";
+
+  if(!hasActivePlan(currentUser)){
+    // Sem plano -> paywall
+    showPaywall();
+  }else{
+    // Tem plano -> entra no sistema
+    abrirSistema(true);
+  }
+}
+
+/* Criação de contas: após criar, entra e cai no paywall */
+function registerCashier(){
+  const u = norm(document.getElementById("regUser").value);
+  const p = document.getElementById("regPass").value;
+  const storeCode = norm(document.getElementById("regStoreCode").value);
+  if(!u || !p || !storeCode){ alert("Preencha usuário, senha e Código da Loja."); return; }
+  if(users.some(x=>norm(x.user)===u)){ alert("Usuário já existe!"); return; }
+  const newUser = {user:u, pass:p, role:"cashier", storeCode, planType:null, planUntil:null};
+  users.push(newUser); saveAll();
+  currentUser = {...newUser}; saveSession();
+  afterLoginUI(); showPaywall();
+}
+function registerOwner(){
+  const u = norm(document.getElementById("regOwnerUser").value);
+  const p = document.getElementById("regOwnerPass").value;
+  const ownerCode = norm(document.getElementById("regOwnerCode").value);
+  if(!u || !p || !ownerCode){ alert("Preencha usuário, senha e crie o Código da Loja."); return; }
+  if(users.some(x=>norm(x.user)===u)){ alert("Usuário já existe!"); return; }
+  const newUser = {user:u, pass:p, role:"owner", storeCode:ownerCode, planType:null, planUntil:null};
+  users.push(newUser); saveAll();
+  currentUser = {...newUser}; saveSession();
+  afterLoginUI(); showPaywall();
+}
+
+function logout(){
+  currentUser = null; ownerSession=null;
+  localStorage.removeItem(KEY_SESSION);
+  document.getElementById("sessionInfo").textContent="Sessão não iniciada";
+  document.getElementById("sbUser").textContent="Visitante";
+  document.getElementById("btnDashboard").style.display="none";
+  openAuth();
+  ['loginUser','loginPass','loginStore'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=""; });
+}
+
+function afterLoginUI(){
+  if(!currentUser) return;
+  document.getElementById("sbUser").textContent = `${currentUser.user} (${currentUser.role.toUpperCase()})`;
+  document.getElementById("sessionInfo").textContent =
+    `Usuário: ${currentUser.user} • Perfil: ${currentUser.role.toUpperCase()} • Loja: ${currentUser.storeCode||'-'}`;
+  document.getElementById("authPage").style.display="none";
+  document.getElementById("sbAuth").classList.remove("active");
+}
+
+/* =================== Paywall / Kiwify =================== */
+function showPaywall(){
+  // esconde seções do sistema
+  document.querySelectorAll("main section").forEach(s=>s.classList.remove("active"));
+  document.getElementById("paywall").style.display="block";
+  document.getElementById("paywall").classList.add("active");
+}
+
+/* Abre o checkout da Kiwify com UTM/identificação básica */
+function choosePlan(type){
+  if(!KIWIFY_LINKS[type]){ alert("Link Kiwify não configurado para: "+type); return; }
+  // Dica: acrescente utm_source/utm_content e ref= para identificar
+  const ref = encodeURIComponent(`${currentUser.user}-${currentUser.storeCode||''}`.trim());
+  const url = `${KIWIFY_LINKS[type]}?ref=${ref}`;
+  window.open(url, "_blank"); // abre o checkout em nova aba
+}
+
+/* Botão "Já paguei / Atualizar"
+   > Sem backend não dá para validar com segurança.
+   > Aqui simulamos que o pagamento foi confirmado (para testes).
+   > Em produção: receba o Webhook da Kiwify no seu servidor e marque o plano. */
+function confirmarPagamento(){
+  const type = prompt("Digite o plano que você comprou (mensal / trimestral / anual):","");
+  if(!["mensal","trimestral","anual"].includes((type||"").toLowerCase())){ alert("Plano inválido."); return; }
+  const months = planMonths(type.toLowerCase());
+  currentUser.planType = type.toLowerCase();
+  currentUser.planUntil = addMonths(new Date(), months).toISOString();
+  // Atualiza o registro do usuário salvo
+  const idx = users.findIndex(u=>norm(u.user)===norm(currentUser.user));
+  if(idx>=0){ users[idx] = {...users[idx], planType:currentUser.planType, planUntil:currentUser.planUntil}; saveAll(); }
+  saveSession();
+  alert("Plano ativado! Liberando o sistema…");
+  abrirSistema(true);
+}
+
+/* =================== UI Básico/Tabs =================== */
+function abrirSistema(openEstoque=false){
+  // proteção: exige plano ativo
+  if(!hasActivePlan(currentUser)){ showPaywall(); return; }
+
+  // Dashboard só para proprietário
+  document.getElementById("btnDashboard").style.display = (currentUser.role==="owner") ? "block" : "none";
+
+  document.getElementById("paywall").style.display="none";
+  document.querySelectorAll("main section").forEach(s=>s.classList.remove("active"));
+
+  if(openEstoque){
+    document.querySelector("nav button[onclick*='estoque']").classList.add("active");
+    document.getElementById("estoque").classList.add("active");
+  }
+  renderEstoque(); atualizarDashboard(); atualizarCaixa();
+}
+
+function showTab(id){
+  // Bloqueia Dashboard para quem não é proprietário
+  if(id==="dashboard" && (!currentUser || currentUser.role!=="owner")){
+    alert("Acesso restrito ao Proprietário."); return;
+  }
+  // Bloqueia qualquer aba sem plano ativo
+  if(id!=="dashboard" && !hasActivePlan(currentUser)){ showPaywall(); return; }
+
+  document.querySelectorAll("nav button").forEach(b=>b.classList.remove("active"));
+  document.querySelectorAll("main section").forEach(s=>s.classList.remove("active"));
+  const btn = Array.from(document.querySelectorAll("nav button")).find(b=>b.getAttribute("onclick")?.includes("'"+id+"'"));
+  if(btn) btn.classList.add("active");
+  const sec = document.getElementById(id);
+  if(sec) sec.classList.add("active");
+  if(id==="estoque") renderEstoque();
+  if(id==="dashboard") atualizarDashboard();
+  if(id==="caixa") atualizarCaixa();
+}
+
+/* =================== Produtos =================== */
+function previewFoto(e){
+  const file=e.target.files?.[0];
+  const box=document.getElementById("fotoPreview");
+  box.innerHTML=""; fotoDataURL=null;
+  if(!file){ box.textContent="Sem imagem"; return; }
+  const r=new FileReader();
+  r.onload=()=>{ fotoDataURL=r.result; const img=new Image(); img.src=fotoDataURL; img.className="thumb"; box.appendChild(img); };
+  r.readAsDataURL(file);
+}
+function addProduto(e){
+  e.preventDefault();
+  if(!currentUser){ alert("Sessão inválida."); return; }
+  if(!hasActivePlan(currentUser)){ showPaywall(); return; }
+
+  const nome=document.getElementById("nomeProd").value.trim();
+  const codigo=norm(document.getElementById("codigoProd").value);
+  const categoria=(document.getElementById("catProd").value||"Outros").trim();
+  const tamanho=document.getElementById("tamProd").value.trim();
+  const qtd=parseInt(document.getElementById("qtdProd").value);
+  const preco=parseFloat(document.getElementById("precoProd").value);
+  const storeCode=norm(currentUser.storeCode);
+
+  if(!nome || !codigo || isNaN(qtd) || isNaN(preco)){ alert("Preencha os campos corretamente."); return; }
+  if(produtos.some(p=>norm(p.codigo)===codigo && norm(p.storeCode)===storeCode)){ alert("Já existe produto com esse código nesta loja."); return; }
+
+  produtos.push({nome,codigo,categoria,tamanho,qtd,preco,foto:fotoDataURL,storeCode});
+  saveAll();
+  alert("Produto cadastrado!");
+  e.target.reset(); fotoDataURL=null; document.getElementById("fotoPreview").innerHTML="<span>Sem imagem</span>";
+  renderEstoque();
+}
+
+/* =================== Estoque =================== */
+function renderEstoque(){
+  const container=document.getElementById("listaCategorias");
+  container.innerHTML="";
+  if(!currentUser){ container.innerHTML="<p>Não logado.</p>"; return; }
+  const sc=norm(currentUser.storeCode);
+  const cat={};
+  produtos.filter(p=>norm(p.storeCode)===sc).forEach(p=>{
+    if(!cat[p.categoria]) cat[p.categoria]=[];
+    cat[p.categoria].push(p);
+  });
+  const keys=Object.keys(cat);
+  if(keys.length===0){ container.innerHTML="<p>Sem produtos cadastrados nesta loja.</p>"; return; }
+  for(const c of keys){
+    let html=`<h3>${c}</h3><table><tr><th>Foto</th><th>Produto</th><th>Código</th><th>Tam.</th><th>Qtd</th><th>Preço</th></tr>`;
+    cat[c].forEach(p=>{
+      html+=`<tr>
+        <td>${p.foto?`<img src="${p.foto}" class="thumb">`:"-"}</td>
+        <td>${p.nome}</td><td>${p.codigo}</td><td>${p.tamanho||"-"}</td>
+        <td>${p.qtd}</td><td>R$ ${p.preco.toFixed(2)}</td>
+      </tr>`;
+    });
+    html+=`</table>`;
+    container.innerHTML+=html;
+  }
+}
+// reduzir 1 ao escanear no estoque
+document.addEventListener("keypress",(e)=>{
+  if(document.activeElement?.id==="barcodeInput" && e.key==="Enter"){
+    e.preventDefault();
+    const code=norm(document.getElementById("barcodeInput").value);
+    const sc=norm(currentUser?.storeCode);
+    const prod=produtos.find(p=>norm(p.codigo)===code && norm(p.storeCode)===sc);
+    if(!prod){ alert("Produto não encontrado nesta loja!"); document.getElementById("barcodeInput").value=""; return; }
+    if(prod.qtd>0) prod.qtd--; else alert("Estoque zerado!");
+    saveAll(); renderEstoque(); document.getElementById("barcodeInput").value="";
+  }
+});
+
+/* =================== Vendas =================== */
+let carrinho=[];
+document.addEventListener("keypress",(e)=>{
+  if(document.activeElement?.id==="vendaInput" && e.key==="Enter"){
+    e.preventDefault();
+    if(!hasActivePlan(currentUser)){ showPaywall(); return; }
+    const q=norm(document.getElementById("vendaInput").value);
+    const sc=norm(currentUser.storeCode);
+    const p=produtos.find(x=>norm(x.storeCode)===sc && (norm(x.codigo)===q || norm(x.nome)===q));
+    if(!p){ alert("Produto não encontrado!"); document.getElementById("vendaInput").value=""; return; }
+    const idx=carrinho.findIndex(i=>norm(i.codigo)===norm(p.codigo));
+    if(idx>=0){ carrinho[idx].qty+=1; } else { carrinho.push({codigo:p.codigo,nome:p.nome,tamanho:p.tamanho,preco:p.preco,qty:1}); }
+    atualizarCarrinho(); document.getElementById("vendaInput").value="";
+  }
+});
+function atualizarCarrinho(){
+  const tbl=document.getElementById("tabelaCarrinho");
+  tbl.innerHTML=`<tr><th>Produto</th><th>Tamanho</th><th>Preço</th><th>Qtd</th><th>Ações</th></tr>`;
+  let total=0;
+  carrinho.forEach((i,k)=>{ total+=i.preco*i.qty;
+    tbl.innerHTML+=`<tr>
+      <td>${i.nome}</td><td>${i.tamanho||"-"}</td><td>R$ ${i.preco.toFixed(2)}</td><td>${i.qty}x</td>
+      <td><button class="btn" style="padding:6px 10px" onclick="incItem(${k})">+</button>
+          <button class="btn ghost" style="padding:6px 10px" onclick="decItem(${k})">−</button>
+          <button class="btn" style="background:#ef4444;padding:6px 10px" onclick="remItem(${k})">Remover</button></td>
+    </tr>`;
+  });
+  document.getElementById("totalVenda").textContent=total.toFixed(2);
+}
+function incItem(i){ carrinho[i].qty++; atualizarCarrinho(); }
+function decItem(i){ carrinho[i].qty--; if(carrinho[i].qty<=0) carrinho.splice(i,1); atualizarCarrinho(); }
+function remItem(i){ carrinho.splice(i,1); atualizarCarrinho(); }
+function finalizarVenda(){
+  if(carrinho.length===0){ alert("Carrinho vazio!"); return; }
+  if(!hasActivePlan(currentUser)){ showPaywall(); return; }
+  const cpf=(document.getElementById("vendaCPF").value||"").trim();
+  if(!cpf){ alert("Informe o CPF do cliente."); return; }
+  const sc=norm(currentUser.storeCode);
+  for(const it of carrinho){
+    const p=produtos.find(x=>norm(x.codigo)===norm(it.codigo) && norm(x.storeCode)===sc);
+    if(p){ p.qtd=Math.max(0,p.qtd - it.qty); }
+  }
+  const total=carrinho.reduce((s,i)=>s+i.preco*i.qty,0);
+  vendas.push({ cpf, itens: JSON.parse(JSON.stringify(carrinho)), total, cashier: currentUser.user, date: new Date(), storeCode: sc });
+  if(!clientes.some(c=>c.cpf===cpf)) clientes.push({nome:"(sem nome)", cpf, contato:""});
+  saveAll();
+  carrinho=[]; atualizarCarrinho(); atualizarDashboard(); atualizarCaixa(); renderEstoque();
+  alert("Venda registrada!");
+}
+
+/* =================== Clientes =================== */
+function criarCliente(){
+  const nome=document.getElementById("cliNomeCad").value.trim();
+  const cpf=document.getElementById("cliCPFCad").value.trim();
+  const con=document.getElementById("cliContatoCad").value.trim();
+  if(!nome || !cpf){ alert("Nome e CPF são obrigatórios."); return; }
+  if(clientes.some(c=>c.cpf===cpf)){ alert("Já existe cliente com esse CPF."); return; }
+  clientes.push({nome, cpf, contato:con}); saveAll();
+  alert("Cliente cadastrado!");
+  document.getElementById("cliNomeCad").value=""; document.getElementById("cliCPFCad").value=""; document.getElementById("cliContatoCad").value="";
+}
+function buscarCompras(){
+  const cpf=document.getElementById("cliCPF").value.trim();
+  const nome=document.getElementById("cliNome").value.trim();
+  const div=document.getElementById("comprasCliente"); div.innerHTML="";
+  const sc=norm(currentUser.storeCode);
+  const lista=vendas.filter(v=>v.cpf===cpf && norm(v.storeCode)===sc);
+  if(lista.length===0){ div.innerHTML="<p>Nenhuma compra encontrada.</p>"; return; }
+  let totalGasto=0; let html=`<h3>Compras de ${nome||"(cliente)"} (${cpf})</h3>`;
+  lista.forEach((v,i)=>{
+    const d=new Date(v.date); html+=`<div class="card"><b>Compra ${i+1}</b> — ${d.toLocaleString()}<ul>`;
+    v.itens.forEach(it=>{ html+=`<li>${it.nome} ${it.tamanho?`(Tam ${it.tamanho})`:""} — ${it.qty}x — R$ ${(it.preco*it.qty).toFixed(2)}</li>`; });
+    html+=`</ul><b>Total:</b> R$ ${v.total.toFixed(2)}</div>`; totalGasto+=v.total;
+  });
+  html+=`<p><b>Total gasto:</b> R$ ${totalGasto.toFixed(2)}</p>`; div.innerHTML=html;
+}
+
+/* =================== Dashboard (owner only) =================== */
+function atualizarDashboard(){
+  const totalV=vendas.length;
+  const valTot=vendas.reduce((s,v)=>s+v.total,0);
+  const clientesSet=new Set(vendas.map(v=>v.cpf));
+  document.getElementById("dashVendas").textContent=totalV;
+  document.getElementById("dashTotal").textContent=valTot.toFixed(2);
+  document.getElementById("dashClientes").textContent=clientesSet.size;
+}
+
+/* =================== Caixa =================== */
+function atualizarCaixa(){
+  if(!currentUser) return;
+  const op=currentUser.user, sc=norm(currentUser.storeCode||"");
+  document.getElementById("caixaOperador").textContent=op;
+  document.getElementById("caixaLoja").textContent=sc||"-";
+  document.getElementById("caixaData").textContent=todayStr();
+
+  const hoje=new Date();
+  const minhasHoje=vendas.filter(v=>v.cashier===op && norm(v.storeCode)===sc && sameDay(new Date(v.date),hoje));
+  document.getElementById("cxQtdVendas").textContent=minhasHoje.length;
+  document.getElementById("cxTotal").textContent=minhasHoje.reduce((s,v)=>s+v.total,0).toFixed(2);
+  document.getElementById("cxItens").textContent=minhasHoje.reduce((s,v)=>s+v.itens.reduce((a,i)=>a+i.qty,0),0);
+
+  const tbl=document.getElementById("cxTabela");
+  tbl.innerHTML=`<tr><th>Hora</th><th>CPF</th><th>Itens</th><th>Total</th></tr>`;
+  minhasHoje.forEach(v=>{
+    const d=new Date(v.date);
+    const q=v.itens.reduce((a,i)=>a+i.qty,0);
+    tbl.innerHTML+=`<tr><td>${d.toLocaleTimeString()}</td><td>${v.cpf}</td><td>${q}</td><td>R$ ${v.total.toFixed(2)}</td></tr>`;
+  });
+
+  const hist={};
+  vendas.filter(v=>v.cashier===op && norm(v.storeCode)===sc).forEach(v=>{
+    const k=new Date(v.date).toLocaleDateString();
+    if(!hist[k]) hist[k]={qtd:0,total:0}; hist[k].qtd++; hist[k].total+=v.total;
+  });
+  const htb=document.getElementById("cxHistorico");
+  htb.innerHTML=`<tr><th>Data</th><th>Qtd Vendas</th><th>Total</th></tr>`;
+  Object.keys(hist).sort((a,b)=>new Date(b)-new Date(a)).forEach(k=>{
+    htb.innerHTML+=`<tr><td>${k}</td><td>${hist[k].qtd}</td><td>R$ ${hist[k].total.toFixed(2)}</td></tr>`;
+  });
+}
+
+/* =================== Proprietário =================== */
+function entrarOwner(){
+  const u=norm(document.getElementById("ownerUser").value);
+  const p=document.getElementById("ownerPass").value;
+  const c=norm(document.getElementById("ownerCode").value);
+  const owner=users.find(x=>norm(x.user)===u && x.pass===p && x.role==="owner" && norm(x.storeCode)===c);
+  if(!owner){ alert("Credenciais do proprietário inválidas."); return; }
+  ownerSession={user:u, storeCode:c};
+  document.getElementById("ownerAuth").style.display="none";
+  document.getElementById("ownerArea").style.display="block";
+  document.getElementById("ownerLoja").textContent=c;
+  renderOwnerViews();
+}
+function renderOwnerViews(){
+  const sc=ownerSession.storeCode;
+  const now=new Date(); const mk=monthKey(now);
+  const vendasLoja=vendas.filter(v=>norm(v.storeCode)===sc);
+  const vendasMes=vendasLoja.filter(v=>monthKey(new Date(v.date))===mk);
+
+  const fatMes=vendasMes.reduce((s,v)=>s+v.total,0);
+  const qtdMes=vendasMes.length;
+  const caixasMes=new Set(vendasMes.map(v=>v.cashier)).size;
+  document.getElementById("ownFatMes").textContent=fatMes.toFixed(2);
+  document.getElementById("ownQtdMes").textContent=qtdMes;
+  document.getElementById("ownCaixasMes").textContent=caixasMes;
+
+  const hoje=new Date();
+  const porCaixaHoje={};
+  vendasLoja.filter(v=>sameDay(new Date(v.date),hoje)).forEach(v=>{
+    if(!porCaixaHoje[v.cashier]) porCaixaHoje[v.cashier]={qtd:0,total:0};
+    porCaixaHoje[v.cashier].qtd++; porCaixaHoje[v.cashier].total+=v.total;
+  });
+  const ownHoje=document.getElementById("ownHoje");
+  ownHoje.innerHTML=`<tr><th>Caixa</th><th>Qtd Vendas</th><th>Total</th></tr>`;
+  Object.keys(porCaixaHoje).forEach(k=>{
+    ownHoje.innerHTML+=`<tr><td>${k}</td><td>${porCaixaHoje[k].qtd}</td><td>R$ ${porCaixaHoje[k].total.toFixed(2)}</td></tr>`;
+  });
+
+  const porCaixaMes={};
+  vendasMes.forEach(v=>{
+    if(!porCaixaMes[v.cashier]) porCaixaMes[v.cashier]={qtd:0,total:0};
+    porCaixaMes[v.cashier].qtd++; porCaixaMes[v.cashier].total+=v.total;
+  });
+  const ownMes=document.getElementById("ownMes");
+  ownMes.innerHTML=`<tr><th>Caixa</th><th>Qtd Vendas</th><th>Total</th></tr>`;
+  Object.keys(porCaixaMes).forEach(k=>{
+    ownMes.innerHTML+=`<tr><td>${k}</td><td>${porCaixaMes[k].qtd}</td><td>R$ ${porCaixaMes[k].total.toFixed(2)}</td></tr>`;
+  });
+
+  const ownProd=document.getElementById("ownProd");
+  ownProd.innerHTML=`<tr><th>Foto</th><th>Produto</th><th>Código</th><th>Categoria</th><th>Tam.</th><th>Qtd</th><th>Preço</th></tr>`;
+  produtos.filter(p=>norm(p.storeCode)===sc).forEach(p=>{
+    ownProd.innerHTML+=`<tr>
+      <td>${p.foto?`<img src="${p.foto}" class="thumb">`:"-"}</td>
+      <td>${p.nome}</td><td>${p.codigo}</td><td>${p.categoria}</td><td>${p.tamanho||"-"}</td>
+      <td>${p.qtd}</td><td>R$ ${p.preco.toFixed(2)}</td>
+    </tr>`;
+  });
+}
+</script>
+</body>
+</html> 
