@@ -71,6 +71,7 @@
   #paywall{display:none}
   #paywall .planTitle{font-weight:800;margin:0}
   #paywall .price{font-size:26px;font-weight:900}
+  #planInfo{margin-top:10px;font-size:14px;color:#1f2937}
 </style>
 </head>
 <body>
@@ -182,6 +183,9 @@
       <div class="card">
         <h2>Escolha um plano para continuar</h2>
         <p class="muted">Detectamos que sua conta ainda não possui um plano ativo.</p>
+
+        <div id="planInfo"></div>
+
         <div class="grid g-3" style="margin-top:12px">
           <div class="card">
             <h3 class="planTitle">Mensal</h3><div class="price">R$ 99,99</div>
@@ -197,8 +201,8 @@
           </div>
         </div>
         <div class="right" style="margin-top:10px">
-          <button class="btn ghost" onclick="alert('Após pagar na Kiwify, volte para o site. Usaremos o retorno/webhook para liberar automaticamente.');">Como funciona?</button>
-          <button class="btn warn" onclick="confirmarPagamento()">Já paguei / Atualizar</button>
+          <button class="btn ghost" onclick="alert('Após pagar na Kiwify, o seu servidor deve receber o webhook e chamar processarWebhookKiwify(...). Enquanto isso, use o botão “Já paguei / Atualizar” para testes locais.');">Como funciona?</button>
+          <button class="btn warn" onclick="confirmarPagamento()">Já paguei / Atualizar (teste)</button>
         </div>
       </div>
     </section>
@@ -346,12 +350,15 @@ const KEY_VEND ="loja_vendas";
 const KEY_CLI  ="loja_clientes";
 const KEY_SESSION="loja_session";
 
-/* Substitua pelos seus links de checkout Kiwify */
+/* Links reais da Kiwify (fornecidos) */
 const KIWIFY_LINKS = {
-  mensal:     "https://pay.kiwify.com.br/SEU_LINK_MENSAL",
-  trimestral: "https://pay.kiwify.com.br/SEU_LINK_TRIMESTRAL",
-  anual:      "https://pay.kiwify.com.br/SEU_LINK_ANUAL"
+  mensal:     "https://pay.kiwify.com.br/X3jn4Sm",
+  trimestral: "https://pay.kiwify.com.br/nmEAOgv",
+  anual:      "https://pay.kiwify.com.br/YEulkYN"
 };
+
+/* Config de acesso */
+const GRACE_DAYS = 5;
 
 let users=[], produtos=[], vendas=[], clientes=[];
 let currentUser=null, ownerSession=null, fotoDataURL=null;
@@ -361,14 +368,26 @@ const norm = s => (s||"").toString().trim().toUpperCase();
 function todayStr(){ return new Date().toLocaleDateString(); }
 function sameDay(a,b){ return a.getFullYear()==b.getFullYear() && a.getMonth()==b.getMonth() && a.getDate()==b.getDate(); }
 function monthKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`; }
-
-/* Plano ativo: salva no user: {planType, planUntil(ISO)} */
-function hasActivePlan(u){
-  if(!u || !u.planType || !u.planUntil) return false;
-  try{ return new Date(u.planUntil) > new Date(); } catch { return false; }
-}
-function planMonths(type){ return type==="mensal"?1 : type==="trimestral"?3 : type==="anual"?12 : 0; }
 function addMonths(date, n){ const d=new Date(date); d.setMonth(d.getMonth()+n); return d; }
+function addDays(date, n){ const d=new Date(date); d.setDate(d.getDate()+n); return d; }
+
+/* Plano ativo: salva no user: {planType, planUntil(ISO), planStatus} */
+function planMonths(type){ return type==="mensal"?1 : type==="trimestral"?3 : type==="anual"?12 : 0; }
+
+function getPlanStatus(u){
+  if(!u || !u.planType || !u.planUntil) return {code:"none", label:"Sem plano"};
+  if(u.planStatus==="canceled") return {code:"canceled", label:"Cancelado"};
+  const now=new Date();
+  const due=new Date(u.planUntil);
+  const grace=addDays(due, GRACE_DAYS);
+  if(now<=due) return {code:"active", label:"Ativo até "+due.toLocaleDateString()};
+  if(now>due && now<=grace) return {code:"grace", label:`Em tolerância até ${grace.toLocaleDateString()}`};
+  return {code:"expired", label:"Expirado"};
+}
+function hasAccess(u){
+  const st=getPlanStatus(u).code;
+  return st==="active" || st==="grace";
+}
 
 function saveAll(){
   localStorage.setItem(KEY_USERS, JSON.stringify(users));
@@ -386,7 +405,7 @@ function loadAll(){
     clientes = JSON.parse(localStorage.getItem(KEY_CLI)||"[]");
   }catch{ users=[];produtos=[];vendas=[];clientes=[]; }
   if(users.length===0){
-    users=[{user:"ADMIN", pass:"1234", role:"owner", storeCode:"LOJA-123", planType:"anual", planUntil:addMonths(new Date(),12).toISOString()}];
+    users=[{user:"ADMIN", pass:"1234", role:"owner", storeCode:"LOJA-123", planType:"anual", planUntil:addMonths(new Date(),12).toISOString(), planStatus:"active"}];
     saveAll();
   }
 }
@@ -448,11 +467,9 @@ function routeAfterLogin(){
   // Dashboard visível só p/ owner
   document.getElementById("btnDashboard").style.display = (currentUser?.role==="owner") ? "block" : "none";
 
-  if(!hasActivePlan(currentUser)){
-    // Sem plano -> paywall
+  if(!hasAccess(currentUser)){
     showPaywall();
   }else{
-    // Tem plano -> entra no sistema
     abrirSistema(true);
   }
 }
@@ -464,7 +481,7 @@ function registerCashier(){
   const storeCode = norm(document.getElementById("regStoreCode").value);
   if(!u || !p || !storeCode){ alert("Preencha usuário, senha e Código da Loja."); return; }
   if(users.some(x=>norm(x.user)===u)){ alert("Usuário já existe!"); return; }
-  const newUser = {user:u, pass:p, role:"cashier", storeCode, planType:null, planUntil:null};
+  const newUser = {user:u, pass:p, role:"cashier", storeCode, planType:null, planUntil:null, planStatus:null};
   users.push(newUser); saveAll();
   currentUser = {...newUser}; saveSession();
   afterLoginUI(); showPaywall();
@@ -475,7 +492,7 @@ function registerOwner(){
   const ownerCode = norm(document.getElementById("regOwnerCode").value);
   if(!u || !p || !ownerCode){ alert("Preencha usuário, senha e crie o Código da Loja."); return; }
   if(users.some(x=>norm(x.user)===u)){ alert("Usuário já existe!"); return; }
-  const newUser = {user:u, pass:p, role:"owner", storeCode:ownerCode, planType:null, planUntil:null};
+  const newUser = {user:u, pass:p, role:"owner", storeCode:ownerCode, planType:null, planUntil:null, planStatus:null};
   users.push(newUser); saveAll();
   currentUser = {...newUser}; saveSession();
   afterLoginUI(); showPaywall();
@@ -494,8 +511,9 @@ function logout(){
 function afterLoginUI(){
   if(!currentUser) return;
   document.getElementById("sbUser").textContent = `${currentUser.user} (${currentUser.role.toUpperCase()})`;
+  const st=getPlanStatus(currentUser);
   document.getElementById("sessionInfo").textContent =
-    `Usuário: ${currentUser.user} • Perfil: ${currentUser.role.toUpperCase()} • Loja: ${currentUser.storeCode||'-'}`;
+    `Usuário: ${currentUser.user} • Perfil: ${currentUser.role.toUpperCase()} • Loja: ${currentUser.storeCode||'-'} • Plano: ${st.label}`;
   document.getElementById("authPage").style.display="none";
   document.getElementById("sbAuth").classList.remove("active");
 }
@@ -506,39 +524,76 @@ function showPaywall(){
   document.querySelectorAll("main section").forEach(s=>s.classList.remove("active"));
   document.getElementById("paywall").style.display="block";
   document.getElementById("paywall").classList.add("active");
+
+  const st = getPlanStatus(currentUser);
+  let msg = "";
+  if(st.code==="none") msg = "Você ainda não possui um plano ativo.";
+  if(st.code==="active") msg = `Seu plano está ativo até <b>${new Date(currentUser.planUntil).toLocaleDateString()}</b>.`;
+  if(st.code==="grace") msg = `Seu plano venceu em <b>${new Date(currentUser.planUntil).toLocaleDateString()}</b>. Você está na tolerância de <b>${GRACE_DAYS} dias</b>.`;
+  if(st.code==="expired") msg = `Plano expirado. Renove para continuar usando o sistema.`;
+  if(st.code==="canceled") msg = `Assinatura <b>cancelada</b>. É preciso assinar novamente.`;
+  document.getElementById("planInfo").innerHTML = msg;
 }
 
 /* Abre o checkout da Kiwify com UTM/identificação básica */
 function choosePlan(type){
   if(!KIWIFY_LINKS[type]){ alert("Link Kiwify não configurado para: "+type); return; }
-  // Dica: acrescente utm_source/utm_content e ref= para identificar
-  const ref = encodeURIComponent(`${currentUser.user}-${currentUser.storeCode||''}`.trim());
-  const url = `${KIWIFY_LINKS[type]}?ref=${ref}`;
+  const ref = encodeURIComponent(`${currentUser?.user||'VISITANTE'}-${currentUser?.storeCode||''}`.trim());
+  const url = `${KIWIFY_LINKS[type]}?ref=${ref}&utm_source=mycomerce&utm_medium=app&utm_content=${type}`;
   window.open(url, "_blank"); // abre o checkout em nova aba
 }
 
-/* Botão "Já paguei / Atualizar"
-   > Sem backend não dá para validar com segurança.
-   > Aqui simulamos que o pagamento foi confirmado (para testes).
-   > Em produção: receba o Webhook da Kiwify no seu servidor e marque o plano. */
+/* Botão "Já paguei / Atualizar" (para testes locais, sem webhook) */
 function confirmarPagamento(){
   const type = prompt("Digite o plano que você comprou (mensal / trimestral / anual):","");
   if(!["mensal","trimestral","anual"].includes((type||"").toLowerCase())){ alert("Plano inválido."); return; }
   const months = planMonths(type.toLowerCase());
   currentUser.planType = type.toLowerCase();
   currentUser.planUntil = addMonths(new Date(), months).toISOString();
+  currentUser.planStatus = "active";
   // Atualiza o registro do usuário salvo
   const idx = users.findIndex(u=>norm(u.user)===norm(currentUser.user));
-  if(idx>=0){ users[idx] = {...users[idx], planType:currentUser.planType, planUntil:currentUser.planUntil}; saveAll(); }
+  if(idx>=0){ users[idx] = {...users[idx], planType:currentUser.planType, planUntil:currentUser.planUntil, planStatus:"active"}; saveAll(); }
   saveSession();
   alert("Plano ativado! Liberando o sistema…");
   abrirSistema(true);
 }
 
+/* ======= Integração real via Webhook =======
+   Configure na Kiwify um webhook para o seu backend (ex: https://suaapi.com/kiwify/webhook).
+   No backend, valide a assinatura do webhook e, se ok, chame no navegador do cliente
+   via sua API/socket esta função abaixo com o payload já traduzido.
+   Exemplos:
+   processarWebhookKiwify({user:'JOAO', action:'approved', planType:'mensal'});
+   processarWebhookKiwify({user:'JOAO', action:'canceled'});
+*/
+function processarWebhookKiwify(evt){
+  const u = users.find(x=>norm(x.user)===norm(evt.user));
+  if(!u) return;
+  if(evt.action==="approved" || evt.action==="renewed"){
+    const months = planMonths(evt.planType);
+    u.planType = evt.planType;
+    u.planUntil = addMonths(new Date(), months).toISOString();
+    u.planStatus = "active";
+  }else if(evt.action==="canceled" || evt.action==="chargeback" || evt.action==="refunded"){
+    u.planStatus = "canceled";
+  }else if(evt.action==="expired"){
+    // mantém planUntil; status passa a expired e será bloqueado após tolerância
+    u.planStatus = "expired";
+  }
+  saveAll();
+  if(currentUser && norm(currentUser.user)===norm(u.user)){
+    currentUser = {...u}; saveSession();
+    const can = hasAccess(currentUser);
+    if(can) abrirSistema(); else showPaywall();
+    afterLoginUI();
+  }
+}
+/* =========================================== */
+
 /* =================== UI Básico/Tabs =================== */
 function abrirSistema(openEstoque=false){
-  // proteção: exige plano ativo
-  if(!hasActivePlan(currentUser)){ showPaywall(); return; }
+  if(!hasAccess(currentUser)){ showPaywall(); return; }
 
   // Dashboard só para proprietário
   document.getElementById("btnDashboard").style.display = (currentUser.role==="owner") ? "block" : "none";
@@ -558,8 +613,8 @@ function showTab(id){
   if(id==="dashboard" && (!currentUser || currentUser.role!=="owner")){
     alert("Acesso restrito ao Proprietário."); return;
   }
-  // Bloqueia qualquer aba sem plano ativo
-  if(id!=="dashboard" && !hasActivePlan(currentUser)){ showPaywall(); return; }
+  // Bloqueia qualquer aba sem acesso válido (ativo ou tolerância)
+  if(id!=="dashboard" && !hasAccess(currentUser)){ showPaywall(); return; }
 
   document.querySelectorAll("nav button").forEach(b=>b.classList.remove("active"));
   document.querySelectorAll("main section").forEach(s=>s.classList.remove("active"));
@@ -585,7 +640,7 @@ function previewFoto(e){
 function addProduto(e){
   e.preventDefault();
   if(!currentUser){ alert("Sessão inválida."); return; }
-  if(!hasActivePlan(currentUser)){ showPaywall(); return; }
+  if(!hasAccess(currentUser)){ showPaywall(); return; }
 
   const nome=document.getElementById("nomeProd").value.trim();
   const codigo=norm(document.getElementById("codigoProd").value);
@@ -649,7 +704,7 @@ let carrinho=[];
 document.addEventListener("keypress",(e)=>{
   if(document.activeElement?.id==="vendaInput" && e.key==="Enter"){
     e.preventDefault();
-    if(!hasActivePlan(currentUser)){ showPaywall(); return; }
+    if(!hasAccess(currentUser)){ showPaywall(); return; }
     const q=norm(document.getElementById("vendaInput").value);
     const sc=norm(currentUser.storeCode);
     const p=produtos.find(x=>norm(x.storeCode)===sc && (norm(x.codigo)===q || norm(x.nome)===q));
@@ -678,7 +733,7 @@ function decItem(i){ carrinho[i].qty--; if(carrinho[i].qty<=0) carrinho.splice(i
 function remItem(i){ carrinho.splice(i,1); atualizarCarrinho(); }
 function finalizarVenda(){
   if(carrinho.length===0){ alert("Carrinho vazio!"); return; }
-  if(!hasActivePlan(currentUser)){ showPaywall(); return; }
+  if(!hasAccess(currentUser)){ showPaywall(); return; }
   const cpf=(document.getElementById("vendaCPF").value||"").trim();
   if(!cpf){ alert("Informe o CPF do cliente."); return; }
   const sc=norm(currentUser.storeCode);
@@ -826,4 +881,4 @@ function renderOwnerViews(){
 }
 </script>
 </body>
-</html> 
+</html>
